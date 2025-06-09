@@ -18,12 +18,10 @@ app.add_middleware(
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise ValueError("SUPABASE_URL y SUPABASE_KEY deben estar definidas en el archivo .env")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Models
+
 class Category(BaseModel):
     nombre: str
 
@@ -39,28 +37,23 @@ class Product(BaseModel):
     rating: Optional[float] = Field(None, alias="rating", ge=1, le=5)
     category_product: List[ProductCategory] = []
 
-class UserRegister(BaseModel):
-    nombre: str
-    apellido: str
-    nombre_usuario: str
-    contraseña: str
-
 class UserLogin(BaseModel):
     nombre_usuario: str
     contraseña: str
 
-# Nuevos endpoints
-@app.post("/register")
-def register_user(user: UserRegister):
-    try:
-        existing_user = supabase.table("user").select("*").eq("nombre_usuario", user.nombre_usuario).execute()
-        if existing_user.data:
-            raise HTTPException(status_code=400, detail="El usuario ya existe")
-        
-        supabase.table("user").insert(user.model_dump()).execute()
-        return {"status": "ok", "msg": "Usuario registrado exitosamente"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al registrar usuario: {str(e)}")
+class CartItem(BaseModel):
+    id_user: int
+    id_product: int
+    quantity: int = Field(ge=1)
+
+class CartItemList(BaseModel):
+    items: List[CartItem]
+
+class Purchase(BaseModel):
+    id_user: int
+    id_product: int
+    quantity: int
+    total_price: float
 
 @app.post("/login")
 def login_user(user: UserLogin):
@@ -73,7 +66,7 @@ def login_user(user: UserLogin):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al hacer login: {str(e)}")
 
-@app.get("/products/search")
+@app.get("/products_search")
 def search_products(
     category_id: Optional[int] = None,
     min_price: Optional[float] = None,
@@ -110,7 +103,6 @@ def search_products(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al consultar productos: {str(e)}")
 
-# Endpoints existentes
 @app.post("/addProduct")
 def create_product(prod: Product):
     try:
@@ -145,3 +137,51 @@ def list_categories():
         return response.data
     else:
         raise HTTPException(status_code=404, detail="No se encontraron categorías")
+
+@app.post("/cart")
+def add_to_cart(cart: CartItemList):
+    try:
+        # Validar que la lista de ítems no esté vacía
+        if not cart.items:
+            raise HTTPException(status_code=400, detail="La lista de ítems no puede estar vacía")
+
+        inserted_items = []
+        for item in cart.items:
+            # Validar que la cantidad sea positiva
+            if item.quantity <= 0:
+                raise HTTPException(status_code=400, detail=f"La cantidad del producto {item.id_product} debe ser mayor que 0")
+
+            # Insertar un registro por cada unidad del producto
+            for _ in range(item.quantity):
+                response = supabase.table("purchases_Made").insert({
+                    "id_user": item.id_user,
+                    "id_product": item.id_product,
+                }).execute()
+                inserted_items.extend(response.data)
+
+        return {
+            "status": "ok",
+            "msg": f"{sum(item.quantity for item in cart.items)} unidad(es) de producto(s) comprada(s) extitosamente",
+            "data": inserted_items
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al agregar al carrito: {str(e)}")
+
+@app.get("/purchases/{user_id}")
+def get_user_purchases(user_id: int):
+    try:
+        response = supabase.table("purchases_Made").select("""
+            *,
+            product (
+                nombre,
+                precio,
+                imagen
+            )
+        """).eq("id_user", user_id).execute()
+        
+        if response.data:
+            return {"purchases": response.data}
+        else:
+            return {"purchases": []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener compras: {str(e)}")
