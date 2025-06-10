@@ -66,42 +66,6 @@ def login_user(user: UserLogin):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al hacer login: {str(e)}")
 
-@app.get("/products_search")
-def search_products(
-    category_id: Optional[int] = None,
-    min_price: Optional[float] = None,
-    max_price: Optional[float] = None,
-    search: Optional[str] = None
-):
-    try:
-        query = supabase.table("product").select("""
-            *,
-            category_product (
-                category (
-                    nombre
-                )
-            )
-        """)
-        
-        if category_id:
-            category_products = supabase.table("category_product").select("id_product").eq("id_category", category_id).execute()
-            if category_products.data:
-                product_ids = [cp["id_product"] for cp in category_products.data]
-                query = query.in_("id", product_ids)
-        
-        if min_price is not None:
-            query = query.gte("precio", min_price)
-        
-        if max_price is not None:
-            query = query.lte("precio", max_price)
-        
-        if search:
-            query = query.ilike("nombre", f"%{search}%")
-        
-        response = query.execute()
-        return {"products": response.data}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al consultar productos: {str(e)}")
 
 @app.post("/addProduct")
 def create_product(prod: Product):
