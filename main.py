@@ -156,3 +156,8 @@ def get_user_purchases(user_id: int):
             return {"purchases": []}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener compras: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    PORT = int(os.getenv("PORT", 8000))  # Railway usa variable PORT
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
