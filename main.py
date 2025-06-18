@@ -6,7 +6,12 @@ from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-load_dotenv()
+
+# Carga .env solo en desarrollo (local)
+if os.getenv("RAILWAY_ENVIRONMENT") is None:  # Si no está en Railway
+    from dotenv import load_dotenv
+    load_dotenv()
+
 app = FastAPI()
 
 app.add_middleware(
@@ -14,6 +19,8 @@ app.add_middleware(
     allow_origins=["*"],
     allow_methods=["*"],
 )
+
+
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
