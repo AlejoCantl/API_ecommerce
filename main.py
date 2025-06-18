@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from supabase import create_client
+from supabase import create_client, Client
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 import os
@@ -26,7 +26,7 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase : Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 class Category(BaseModel):
